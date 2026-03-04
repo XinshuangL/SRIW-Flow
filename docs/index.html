@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SRIW-Flow: Score-Regularized Joint Sampling with Importance Weights for Flow Matching</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+  <link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+      onload="renderMathInElement(document.body, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\(', right: '\\)', display: false},
+          {left: '$', right: '$', display: false}
+        ]
+      });">
+  </script>
+  <style>
+    /* ===== Design Tokens ===== */
+    :root{
+      --w: min(1100px, 65vw);
+      --bg:#fbfbfd;
+      --text:#0b0f19;
+      --muted:#6f7783;
+      --rule:#e6e9ef;
+      --surface:#ffffff;
+      --link:#0a58ff;
+      --accent:#215dff;
+      --shadow: 0 1px 1px rgba(16,24,40,.04), 0 12px 24px -18px rgba(16,24,40,.18);
+      --radius:.75rem;
+    }
+    @media (prefers-color-scheme:dark){
+      :root{
+        --bg:#0b0c10;
+        --text:#e8eaee;
+        --muted:#a0a7b1;
+        --rule:#262a31;
+        --surface:#101318;
+        --link:#7fb0ff;
+        --accent:#7aa7ff;
+        --shadow: 0 1px 2px rgba(0,0,0,.35), 0 14px 36px rgba(0,0,0,.35);
+      }
+    }
+
+    /* ===== Base ===== */
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height:1.6;
+      font-size: clamp(.98rem, .9rem + .22vw, 1.06rem);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    body::before{
+      content:"";
+      position:fixed; inset:0; z-index:-1; pointer-events:none;
+      background:
+        radial-gradient(900px 500px at 20% -10%, rgba(33,93,255,.080), transparent 60%),
+        radial-gradient(800px 400px at 110% 0%, rgba(33,93,255,.060), transparent 60%);
+    }
+
+    a{color:var(--link); text-decoration:underline; text-underline-offset:.14rem}
+    img,video{max-width:100%; height:auto; display:block}
+
+    .container{width:100%; padding-inline: max(4vw, 1rem)}
+    .container > *{max-width:var(--w); margin-inline:auto}
+    .stack > * + *{margin-top: clamp(1rem, 1.5vw, 1.5rem)}
+
+    hr{border:0; border-top:.0625rem solid var(--rule); margin: clamp(1rem, 2vw, 1.6rem) 0}
+
+    /* ===== Typography ===== */
+    h1,h2,h3{margin:0 0 .5rem; line-height:1.2; font-weight:700; letter-spacing:-.01em}
+    .paper-title{
+      font-size: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+      margin-bottom:.35rem;
+    }
+    .paper-title .brand{
+      font-weight:800;
+      background: linear-gradient(90deg, var(--accent), #5ea2ff);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .subtitle{color:var(--muted); font-size: clamp(1rem, .95rem + .4vw, 1.15rem)}
+
+    .section{padding-block: 1.2rem}
+    .section-title{
+      font-size: clamp(1.6rem, 1.2rem + 2.2vw, 2.2rem); 
+      margin-bottom: .75rem;
+    }
+    .lead{color:var(--muted)}
+
+    /* ===== Hero ===== */
+    .hero{
+      padding-block: clamp(1.25rem, 3vw, 2.25rem);
+    }
+    .author-line, .affil-line{
+      display:flex; flex-wrap:wrap; justify-content:center; gap:.6rem 1rem;
+      color:var(--text);
+    }
+    .author-line b{font-weight:700}
+    .affil-line{color:var(--muted)}
+
+    /* ===== Figures ===== */
+    figure{margin:0}
+    .figure-card{
+      background:var(--surface); border:.0625rem solid var(--rule); border-radius:var(--radius);
+      padding: clamp(.6rem, 1vw, .85rem); box-shadow: var(--shadow);
+    }
+    .figure-card > img, .figure-card > video{
+      border-radius: 0;
+      border:0;
+      background:#000; /* for videos */
+    }
+    figcaption{margin-top:.5rem; color:var(--muted); font-size:.95rem}
+
+    /* ===== Qualitative Video Cards ===== */
+    .video-grid{display:grid; gap: clamp(.8rem, 1.2vw, 1rem)}
+    .video-card{
+      background:var(--surface); border:.0625rem solid var(--rule);
+      border-radius:var(--radius); padding: clamp(.75rem, 1.2vw, 1rem); 
+      box-shadow: var(--shadow);
+    }
+    .vid-title{
+      text-align:center; font-weight:700;
+      font-size: clamp(1.02rem, .95rem + .5vw, 1.25rem);
+      margin-bottom:.45rem;
+    }
+
+    /* ===== Utilities ===== */
+    .center{text-align:center}
+    .inline-list{list-style:none; padding:0; margin:0}
+    .inline-list > li{display:inline; }
+    .inline-list > li + li::before{content:"·"; margin: 0 .6rem; color:var(--muted)}
+
+    /* ===== Buttons ===== */
+    .cta-row {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .cta-row .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 9999px;
+      background: #fff;
+      color: #444;
+      border: 1.5px solid #bbb;
+      font-weight: 500;
+      text-decoration: none;
+      transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    .cta-row .btn:hover {
+      transform: translateY(-1px);
+      background: #fafafa;
+      border-color: #999;
+      color: #222;
+    }
+
+  </style>
+  
+  <link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  crossorigin="anonymous" referrerpolicy="no-referrer">
+
+</head>
+<body>
+  <header class="hero container">
+    <div class="stack center">
+      <h1 class="paper-title">
+        <span class="brand">SRIW-Flow</span>: Score-Regularized Joint Sampling with Importance Weights for Flow Matching
+      </h1>
+      <nav aria-label="Authors and affiliation">
+        <p class="author-line">
+          <b>Xinshuang Liu</b>
+          <b>Runfa Blark Li</b>
+          <b>Shaoxiu Wei</b>
+          <b>Truong Nguyen</b>
+        </p>
+        <p class="affil-line">University of California, San Diego · San Diego, CA, USA</p>
+      </nav>
+
+      <div class="cta-row">
+        <a class="btn" href="https://arxiv.org/abs/2511.17812" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-file-pdf"></i> Paper
+        </a>
+        <a class="btn" href="https://github.com/XinshuangL/SRIW-Flow" target="_blank" rel="noopener noreferrer">
+          <i class="fa-brands fa-github"></i> Code
+        </a>
+      </div>
+      
+    </div>
+  </header>
+
+  <main class="container stack">
+    <!-- Intro Figure -->
+    <section class="section" aria-labelledby="intro-figure">
+      <figure class="figure-card" style="display:flex; align-items:center; width:100%; margin:0;">
+        <img src="img/introduction.png"
+             alt="Illustration of importance-weighted non-IID sampling."
+             style="width:30%; height:auto;">
+        <figcaption id="intro-figure"   style="flex:0 0 70%; max-width:70%; box-sizing:border-box; padding-left:1rem;text-align: justify;">
+          <em><strong>Illustration of importance-weighted non-IID sampling.</strong> Under IID sampling, both samples are likely drawn from the same dominant mode. In contrast, diversity velocity encourages samples to diverge along their trajectories, leading to coverage of multiple modes. To correct the resulting sampling bias, importance weights are required. Intuitively, $w_1 > 1 > w_2$, since non-IID sampling draws the second sample from a minor mode.</em>
+        </figcaption>
+      </figure>
+    </section>
+
+    <!-- Abstract -->
+    <section class="section" aria-labelledby="abstract">
+      <h2 class="section-title" id="abstract">Abstract</h2>
+      <p style="text-align: justify;">
+        Flow matching models effectively represent complex distributions, yet estimating expectations of functions of their outputs remains challenging under limited sampling budgets. Independent sampling often yields high-variance estimates, especially when rare but high-impact outcomes dominate the expectation. We propose a <strong>non-IID sampling framework</strong> that jointly draws multiple samples to cover diverse, salient regions of a flow matching model's generative distribution. To balance diversity and quality, we introduce a <strong>score-based regularization for the diversity mechanism</strong> (SR), which uses the score function, <em>i.e.</em>, the gradient of the log probability, to ensure samples are pushed apart within high-density regions of the data manifold, mitigating off-manifold drift. To enable unbiased estimation when desired, we further develop an approach for <strong>importance weighting of non-IID flow samples</strong> by learning a residual velocity field that reproduces the marginal distribution of the non-IID samples and by evolving importance weights <em>along trajectories</em>. Empirically, our method produces diverse, high-quality samples and accurate estimates of both importance weights and expectations, advancing the reliable characterization of flow matching model outputs. Our code will be publicly available on GitHub.
+      </p>
+    </section>
+
+    <!-- Method -->
+    <section class="section" aria-labelledby="method">
+      <h2 class="section-title" id="method">Method</h2>
+      <p style="text-align: justify;">
+        Our approach addresses both (G1) diversity with quality and (G2) unbiasedness by modifying the sampling of a pre-trained flow. We generate a batch of $n$ samples jointly, $X^{(1:n)} = (X^{(1)}, \dots, X^{(n)})$, from velocity $v(x,t)$ with base distribution $p_0(x)$. We encourage diversity while preserving on-manifold quality and assign an importance weight to each sample so that the expectation estimator remains unbiased. We achieve this with two components: (1) <strong>score-based diversity velocity regularization</strong> that pushes samples apart primarily along high-density directions, and (2) a <strong>residual velocity for importance weighting</strong> added to $v$ to model each sample's marginal distribution under the joint sampler.
+      </p>
+    </section>
+
+    <!-- Qualitative Results -->
+    <section class="section" aria-labelledby="qual-results">
+      <h2 class="section-title" id="qual-results">Qualitative Results</h2>
+      <div class="video-grid" aria-label="Qualitative result videos">
+
+        <figure class="figure-card">
+          <img src="img/text2image.png" alt="Illustration of importance-weighted non-IID sampling.">
+          <figcaption id="intro-figure" style="text-align: justify;">
+            <em><strong>Qualitative results for text-to-image generation.</strong>
+              Although diverse, <strong>Sample 1</strong> from DPP appears unreasonable. Adding SR (hard) preserves diversity while making it reasonable. For <strong>Sample 2</strong>, SR (hard) refines the cat's eyes.</em>
+          </figcaption>
+        </figure>
+
+        <figure class="figure-card">
+          <img src="img/inpainting.png" alt="Illustration of importance-weighted non-IID sampling.">
+          <figcaption id="intro-figure" style="text-align: justify;">
+            <em><strong>Qualitative results for image inpainting.</strong> 
+              Two samples are shown from the joint samples, with all methods sharing identical initialization. In <strong>Sample 1</strong>, DPP introduces artifacts (highlighted by the black rectangle) that are removed by SR (hard). While enhancing quality, DPP+SR (hard) retains the diversity of DPP, as illustrated in <strong>Sample 2</strong>.</em>
+          </figcaption>
+        </figure>
+  
+        <figure class="video-card">
+          <video src="img/Example of joint ODE trajectories.mp4" preload="metadata" playsinline controls aria-label="Illumination and appearance adaptation video">
+            Your browser does not support the video tag.
+          </video>
+          <figcaption id="intro-figure" style="text-align: justify;">
+            <em><strong>Joint ODE trajectories on a three-component Gaussian mixture (video).</strong>
+              All methods start from identical initial states. &quot;IID&quot; is the baseline without a diversity objective and collapses to the highest-weight mode. &quot;Non-IID (DPP)&quot; uses a determinantal point process objective to encourage sample diversity, enabling the three trajectories to discover all three modes. &quot;SR&quot; denotes our score-based diversity-velocity regularization (the soft version is used in this example). Combining DPP + SR pulls samples toward the underlying modes while preserving coverage (white rectangle). &quot;IW&quot; denotes importance-weight estimation. The full method (DPP + SR + IW) further assigns an importance weight to each trajectory; larger markers indicate higher estimated weight (white circle). For visualization, arrow lengths are rescaled nonlinearly while preserving their relative ordering. The background shows the relative value of $\log p(x)$, where $p$ is the target density corresponding to the IID ODE; yellow indicates higher density and purple indicates lower density.</em>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section center" aria-label="Footer">
+      <ul class="inline-list">
+        <li>© Xinshuang Liu</li>
+      </ul>
+    </section>
+    
+  </main>
+</body>
+</html>
